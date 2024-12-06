@@ -1,3 +1,4 @@
+use claudiofsr_lib::StrExtension;
 use itertools::Itertools;
 use serde::{
     Deserialize,
@@ -29,7 +30,7 @@ use chrono::{
     Datelike,
     NaiveDate,
 };
-use claudiofsr_lib::GetNChars;
+
 use struct_iterable::Iterable;
 use rust_xlsxwriter::serialize_chrono_naive_to_excel;
 use crate::{
@@ -335,7 +336,7 @@ where
 #[derive(Debug)]
 pub struct ExtendVec<'a, T: 'a>(&'a mut Vec<T>);
 
-impl<'de, 'a, T> DeserializeSeed<'de> for ExtendVec<'a, T>
+impl<'de, T> DeserializeSeed<'de> for ExtendVec<'_, T>
 where
     T: Deserialize<'de>,
 {
@@ -352,7 +353,7 @@ where
         // input.
         struct ExtendVecVisitor<'a, T: 'a>(&'a mut Vec<T>);
 
-        impl<'de, 'a, T> Visitor<'de> for ExtendVecVisitor<'a, T>
+        impl<'de, T> Visitor<'de> for ExtendVecVisitor<'_, T>
         where
             T: Deserialize<'de>,
         {

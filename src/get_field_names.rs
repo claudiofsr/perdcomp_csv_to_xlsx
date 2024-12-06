@@ -14,7 +14,7 @@ struct FieldTracingDeserializer<'a> {
     fields: &'a mut Vec<&'static str>,
 }
 
-impl<'de, 'a> serde::Deserializer<'de> for FieldTracingDeserializer<'a> {
+impl<'de> serde::Deserializer<'de> for FieldTracingDeserializer<'_> {
     type Error = serde::de::value::Error;
 
     fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value, Self::Error>
@@ -119,7 +119,8 @@ mod functions {
     // cargo test -- --help
     // cargo test -- --nocapture
     // cargo test -- --show-output
-
+    
+    #[allow(dead_code, unreachable_patterns)]
     #[test]
     /// cargo test -- --show-output get_headers_from_struct
     fn get_headers_from_struct() -> MyResult<()> {

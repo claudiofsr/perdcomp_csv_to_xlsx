@@ -7,7 +7,7 @@ use std::{
 use perdcomp_csv_to_xlsx::*;
 use tempfile::NamedTempFile;
 
-/**
+/*
     clear && cargo test -- --nocapture
     clear && cargo run -- --help
     clear && cargo run -- -tkvp /tmp/teste.csv
