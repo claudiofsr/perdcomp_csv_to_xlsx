@@ -39,7 +39,7 @@ fn main() -> MyResult<()> {
 
     // Sort Vec<PerDcomp> by key
     perdcomps.sort_by_key(|perdcomp| (
-        perdcomp.get_year(),
+        perdcomp.ano.clone(),
         perdcomp.trimestre_de_apuracao.clone(),
         Reverse(perdcomp.tipo_do_credito.clone()),
         perdcomp.data_da_transmissao,

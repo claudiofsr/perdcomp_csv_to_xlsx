@@ -1,4 +1,3 @@
-use claudiofsr_lib::StrExtension;
 use itertools::Itertools;
 use serde::{
     Deserialize,
@@ -36,7 +35,8 @@ use rust_xlsxwriter::serialize_chrono_naive_to_excel;
 use crate::{
     excel::InfoExtension,
     GetFieldNames,
-    REGEX_DDMMYYYY,
+    REGEX_DDMMYYYY, 
+    REGEX_TRIMESTRE_ANO,
 };
 
 const FORMAT_DDMMYYYY: &str = "%-d/%-m/%Y"; // %Y: year, zero-padded to 4 digits.
@@ -90,6 +90,8 @@ pub struct PerDcomp {
     pub tipo_do_credito: String,
     #[serde(rename = "Trimestre Apuração")]
     pub trimestre_de_apuracao: String,
+    #[serde(rename = "Ano")]
+    pub ano: Option<String>,
     #[serde(rename = "Situação")]
     pub situacao: String,
     #[serde(rename = "Motivo")]
@@ -219,18 +221,27 @@ impl PerDcomp {
         use perdcomp_csv_to_xlsx::PerDcomp;
 
         let mut per_comp = PerDcomp::default();
-        per_comp.trimestre_de_apuracao = "28022024".to_string();
-        let year: String = per_comp.get_year();
+        per_comp.trimestre_de_apuracao = "3º TRIMESTRE de 2021".to_string();
+        per_comp.get_year();
 
-         assert_eq!(year, "2024");
+        assert_eq!(per_comp.trimestre_de_apuracao, "3º TRIMESTRE");
+        assert_eq!(per_comp.ano, Some("2021".to_string()));
     ```
     */
-    pub fn get_year(&self) -> String {
-        self
-            .trimestre_de_apuracao
-            .trim()
-            .get_last_n_chars(4)
-            .to_string()
+    pub fn get_year(&mut self) {
+        // trimestre_de_apuracao = "3º TRIMESTRE 2021"
+        let trimestre = self.trimestre_de_apuracao.clone();
+
+        let (trim, year) = if let Some(captures) = REGEX_TRIMESTRE_ANO.captures(&trimestre) {
+            let t: &str = captures.get(1).map_or("", |m| m.as_str());
+            let y: &str = captures.get(2).map_or("", |m| m.as_str());
+            (t.to_string(), y.to_string())
+        } else {
+            (trimestre, "".to_string())
+        };
+
+        self.trimestre_de_apuracao = trim;
+        self.ano = Some(year);
     }
 }
 
@@ -754,7 +765,7 @@ mod functions {
         let headers = PerDcomp::get_field_names();
         println!("headers: {headers:#?}");        
         assert_eq!(headers[0], "PER/DCOMP");
-        assert_eq!(headers[27], "PER/DCOMP [2]");
+        assert_eq!(headers[28], "PER/DCOMP [2]");
         Ok(())
     }
 }

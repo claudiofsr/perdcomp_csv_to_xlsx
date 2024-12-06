@@ -299,6 +299,10 @@ where
                 }
             }
         })
+        .map(|mut per_comp: PerDcomp| {
+            per_comp.get_year();
+            per_comp
+        })
         .collect();
 
     Ok(perdcomps)

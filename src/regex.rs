@@ -77,6 +77,20 @@ pub static REGEX_ERROR_DUPLICATE_FIELD: Lazy<Regex> = Lazy::new(||
     ").unwrap()
 );
 
+// Trimestre de apuracao = "3º TRIMESTRE 2021"
+// Trimestre de apuracao = "3º TRIMESTRE de 2021"
+pub static REGEX_TRIMESTRE_ANO: Lazy<Regex> = Lazy::new(||
+    Regex::new(r#"^(?x)
+        ^       # start
+        \s*     # whitespace
+        (.*?)   # "3º TRIMESTRE"
+        [de\s]* # " de "
+        (\d{4}) # year: 2021
+        \s*     # whitespace
+        $       # final
+    "#).unwrap()
+);
+
 pub static REGEX_DDMMYYYY: Lazy<Regex> = Lazy::new(||
     // 25/05/2023 12:39:04
     // 25/05/23 12:39:04
