@@ -1,4 +1,4 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use regex::Regex;
 
 // Regex, flags:
@@ -8,13 +8,13 @@ use regex::Regex;
 /// Example:
 ///
 /// <https://docs.rs/once_cell/latest/once_cell/sync/struct.Lazy.html>
-pub static REGEX_CANCELAMENTO: Lazy<Regex> = Lazy::new(||
+pub static REGEX_CANCELAMENTO: LazyLock<Regex> = LazyLock::new(||
     Regex::new(r"(?ix)
         Cancelamento
     ").unwrap()
 );
 
-pub static REGEX_CENTER: Lazy<Regex> = Lazy::new(||
+pub static REGEX_CENTER: LazyLock<Regex> = LazyLock::new(||
     Regex::new(r"(?ix)
         # non-capturing group: (?:regex)
         ^(:?
@@ -34,25 +34,25 @@ pub static REGEX_CENTER: Lazy<Regex> = Lazy::new(||
     ").unwrap()
 );
 
-pub static REGEX_VALUE: Lazy<Regex> = Lazy::new(||
+pub static REGEX_VALUE: LazyLock<Regex> = LazyLock::new(||
     Regex::new(r"(?ix)
         Total|Valor
     ").unwrap()
 );
 
-pub static REGEX_ALIQ: Lazy<Regex> = Lazy::new(||
+pub static REGEX_ALIQ: LazyLock<Regex> = LazyLock::new(||
     Regex::new(r"(?ix)
         Alíquota
     ").unwrap()
 );
 
-pub static REGEX_DATE: Lazy<Regex> = Lazy::new(||
+pub static REGEX_DATE: LazyLock<Regex> = LazyLock::new(||
     Regex::new(r"(?ix)
         ^(:?Data|Dia)
     ").unwrap()
 );
 
-pub static REGEX_FIELDS: Lazy<Regex> = Lazy::new(||
+pub static REGEX_FIELDS: LazyLock<Regex> = LazyLock::new(||
     Regex::new(r"(?x)
         \b # word boundary
         (:?
@@ -66,20 +66,20 @@ pub static REGEX_FIELDS: Lazy<Regex> = Lazy::new(||
     ").unwrap()
 );
 
-pub static REGEX_ERROR_MISSING_FIELD: Lazy<Regex> = Lazy::new(||
+pub static REGEX_ERROR_MISSING_FIELD: LazyLock<Regex> = LazyLock::new(||
     Regex::new(r"(?ix)
         missing\s*field
     ").unwrap()
 );
 
-pub static REGEX_ERROR_DUPLICATE_FIELD: Lazy<Regex> = Lazy::new(||
+pub static REGEX_ERROR_DUPLICATE_FIELD: LazyLock<Regex> = LazyLock::new(||
     Regex::new(r"(?ix)
         duplicate\s*field
     ").unwrap()
 );
 
 // Trimestre de apuracao = " 3º TRIMESTRE 2021 " | "3º TRIMESTRE de 2021"
-pub static REGEX_TRIMESTRE_ANO: Lazy<Regex> = Lazy::new(||
+pub static REGEX_TRIMESTRE_ANO: LazyLock<Regex> = LazyLock::new(||
     Regex::new(r#"^(?x)
         ^       # start
         \s*     # whitespace
@@ -91,7 +91,7 @@ pub static REGEX_TRIMESTRE_ANO: Lazy<Regex> = Lazy::new(||
     "#).unwrap()
 );
 
-pub static REGEX_DDMMYYYY: Lazy<Regex> = Lazy::new(||
+pub static REGEX_DDMMYYYY: LazyLock<Regex> = LazyLock::new(||
     // 25/05/2023 12:39:04
     // 25/05/23 12:39:04
     // 25/05/20 12:39
