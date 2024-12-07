@@ -18,6 +18,7 @@ pub static REGEX_CENTER: Lazy<Regex> = Lazy::new(||
     Regex::new(r"(?ix)
         # non-capturing group: (?:regex)
         ^(:?
+            Ano|
             CNPJ|CPF|CST|
             Chave|NCM|
             Registro|Identifica|
@@ -47,7 +48,7 @@ pub static REGEX_ALIQ: Lazy<Regex> = Lazy::new(||
 
 pub static REGEX_DATE: Lazy<Regex> = Lazy::new(||
     Regex::new(r"(?ix)
-        ^(:?Data|Dia|Ano)
+        ^(:?Data|Dia)
     ").unwrap()
 );
 
@@ -77,8 +78,7 @@ pub static REGEX_ERROR_DUPLICATE_FIELD: Lazy<Regex> = Lazy::new(||
     ").unwrap()
 );
 
-// Trimestre de apuracao = "3º TRIMESTRE 2021"
-// Trimestre de apuracao = "3º TRIMESTRE de 2021"
+// Trimestre de apuracao = " 3º TRIMESTRE 2021 " | "3º TRIMESTRE de 2021"
 pub static REGEX_TRIMESTRE_ANO: Lazy<Regex> = Lazy::new(||
     Regex::new(r#"^(?x)
         ^       # start

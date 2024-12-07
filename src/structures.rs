@@ -89,9 +89,9 @@ pub struct PerDcomp {
     #[serde(rename = "Tipo Crédito")]
     pub tipo_do_credito: String,
     #[serde(rename = "Trimestre Apuração")]
-    pub trimestre_de_apuracao: String,
+    pub trimestre_de_apuracao: Option<String>,
     #[serde(rename = "Ano")]
-    pub ano: Option<String>,
+    pub ano: Option<u32>,
     #[serde(rename = "Situação")]
     pub situacao: String,
     #[serde(rename = "Motivo")]
@@ -221,27 +221,25 @@ impl PerDcomp {
         use perdcomp_csv_to_xlsx::PerDcomp;
 
         let mut per_comp = PerDcomp::default();
-        per_comp.trimestre_de_apuracao = "3º TRIMESTRE de 2021".to_string();
+        let trim = "3º TRIMESTRE de 2021".to_string();
+        per_comp.trimestre_de_apuracao = Some(trim);
         per_comp.get_year();
 
-        assert_eq!(per_comp.trimestre_de_apuracao, "3º TRIMESTRE");
-        assert_eq!(per_comp.ano, Some("2021".to_string()));
+        assert_eq!(per_comp.trimestre_de_apuracao, Some("3º TRIMESTRE".to_string()));
+        assert_eq!(per_comp.ano, Some(2021));
     ```
     */
     pub fn get_year(&mut self) {
         // trimestre_de_apuracao = "3º TRIMESTRE 2021"
-        let trimestre = self.trimestre_de_apuracao.clone();
+        if let Some(trimestre) = self.trimestre_de_apuracao.as_ref() {
+            if let Some(captures) = REGEX_TRIMESTRE_ANO.captures(trimestre) {
+                let trim: Option<String> = captures.get(1).map(|s| s.as_str().to_string());
+                let year: Option<u32> = captures.get(2).and_then(|s| s.as_str().parse().ok());
 
-        let (trim, year) = if let Some(captures) = REGEX_TRIMESTRE_ANO.captures(&trimestre) {
-            let t: &str = captures.get(1).map_or("", |m| m.as_str());
-            let y: &str = captures.get(2).map_or("", |m| m.as_str());
-            (t.to_string(), y.to_string())
-        } else {
-            (trimestre, "".to_string())
-        };
-
-        self.trimestre_de_apuracao = trim;
-        self.ano = Some(year);
+                self.trimestre_de_apuracao = trim;
+                self.ano = year;
+            }
+        }
     }
 }
 
