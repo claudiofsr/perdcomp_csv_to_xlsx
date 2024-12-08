@@ -80,14 +80,16 @@ pub static REGEX_ERROR_DUPLICATE_FIELD: LazyLock<Regex> = LazyLock::new(||
 
 // Trimestre de apuracao = " 3º TRIMESTRE 2021 " | "3º TRIMESTRE de 2021"
 pub static REGEX_TRIMESTRE_ANO: LazyLock<Regex> = LazyLock::new(||
-    Regex::new(r#"^(?x)
-        ^       # start
-        \s*     # whitespace
-        (.*?)   # "3º TRIMESTRE"
-        [de\s]* # " de "
-        (\d{4}) # year: 2021
-        \s*     # whitespace
-        $       # final
+    Regex::new(r#"^(?ix)
+        ^                # start
+        \s*              # whitespace
+        (.*Trimestre.*?) # "3º TRIMESTRE"
+        \s*              # whitespace
+        (?:de)?          # "de"
+        \s*              # whitespace
+        (\d{2,4})        # year: 2021
+        \s*              # whitespace
+        $                # final
     "#).unwrap()
 );
 

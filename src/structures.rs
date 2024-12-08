@@ -221,12 +221,20 @@ impl PerDcomp {
         use perdcomp_csv_to_xlsx::PerDcomp;
 
         let mut per_comp = PerDcomp::default();
-        let trim = "3º TRIMESTRE de 2021".to_string();
-        per_comp.trimestre_de_apuracao = Some(trim);
+
+        let trim_a = "3º TRIMESTRE de 2021".to_string();
+        per_comp.trimestre_de_apuracao = Some(trim_a);
         per_comp.get_year();
 
         assert_eq!(per_comp.trimestre_de_apuracao, Some("3º TRIMESTRE".to_string()));
         assert_eq!(per_comp.ano, Some(2021));
+
+        let trim_b = "4º Trimestre 2024".to_string();
+        per_comp.trimestre_de_apuracao = Some(trim_b);
+        per_comp.get_year();
+
+        assert_eq!(per_comp.trimestre_de_apuracao, Some("4º Trimestre".to_string()));
+        assert_eq!(per_comp.ano, Some(2024));
     ```
     */
     pub fn get_year(&mut self) {
