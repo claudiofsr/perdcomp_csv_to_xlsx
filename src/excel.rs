@@ -81,6 +81,7 @@ where
 
     worksheet.serialize(&lines)?;
 
+    //worksheet.autofit_to_max_width(150);
     worksheet.autofit();
 
     Ok(worksheet)
