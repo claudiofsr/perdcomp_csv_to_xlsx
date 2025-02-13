@@ -27,6 +27,10 @@ pub static REGEX_CENTER: LazyLock<Regex> = LazyLock::new(|| {
             Chave|NCM|
             Registro|Identifica|
             Período\sApuração|
+            Detentor\sCrédito|
+            Demonstra\sCrédito|
+            Pendente\sAtuação|
+            Tipo\sDocumento|
             Cancelado|
             Estado|
             Per.*Dcomp|

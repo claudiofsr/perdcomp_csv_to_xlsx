@@ -7,13 +7,12 @@ use chrono::{Datelike, NaiveDate};
 
 use crate::{excel::InfoExtension, GetFieldNames, REGEX_DDMMYYYY, REGEX_TRIMESTRE_ANO};
 use rust_xlsxwriter::serialize_chrono_naive_to_excel;
-use struct_iterable::Iterable;
 
 const FORMAT_DDMMYYYY: &str = "%-d/%-m/%Y"; // %Y: year, zero-padded to 4 digits.
 const FORMAT_DDMMYY: &str = "%-d/%-m/%y"; // %y: year, zero-padded to 2 digits.
 
 //#[serde_as]
-#[derive(Debug, Default, Serialize, Deserialize, Iterable)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct PerDcomp {
     #[serde(rename = "PER/DCOMP")] // Coluna Repetida
     pub per_dcomp: Option<String>,

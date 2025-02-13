@@ -1,11 +1,7 @@
-use chrono::NaiveDate;
-use claudiofsr_lib::StrExtension;
-use itertools::{self, Itertools};
 use rust_xlsxwriter::{Format, FormatAlign, Table, Workbook, Worksheet};
 use serde::{Deserialize, Serialize};
 use serde_aux::prelude::serde_introspect;
 use std::{collections::HashMap, path::Path};
-use struct_iterable::Iterable;
 
 // use rayon::prelude::*;
 
@@ -41,7 +37,7 @@ pub trait InfoExtension {
 pub fn write_xlsx<'de, T, P>(lines: &[T], sheet_name: &str, output_file: P) -> MyResult<()>
 where
     P: AsRef<Path> + std::marker::Copy + std::fmt::Debug,
-    T: Serialize + Deserialize<'de> + InfoExtension + Iterable, // + Sync + Send
+    T: Serialize + Deserialize<'de> + InfoExtension, // + Sync + Send
 {
     if lines.is_empty() {
         return Ok(());
@@ -80,7 +76,7 @@ where
 /// Get Worksheet according to some struct T
 fn get_worksheet<'de, T>(lines: &[T], sheet_name: &str) -> MyResult<Worksheet>
 where
-    T: Serialize + Deserialize<'de> + InfoExtension + Iterable, // + Sync + Send
+    T: Serialize + Deserialize<'de> + InfoExtension, // + Sync + Send
 {
     let column_names: &[&str] = T::get_headers(); // <-- InfoExtension
     let column_number: u16 = column_names.len().try_into()?;
@@ -127,7 +123,6 @@ where
     */
 
     worksheet.autofit();
-    //auto_fit(&mut worksheet, lines, column_names)?;
 
     Ok(worksheet)
 }
@@ -197,115 +192,4 @@ fn format_columns_by_names(
     }
 
     Ok(())
-}
-
-/// Iterate over all data and find the max data width for each column.
-#[allow(dead_code)]
-fn auto_fit<'de, T>(worksheet: &mut Worksheet, lines: &[T], column_names: &[&str]) -> MyResult<()>
-where
-    T: Serialize + Deserialize<'de> + InfoExtension + Iterable, // + Sync + Send
-{
-    // HashMap<col index, col width>:
-    let mut max_length: HashMap<usize, usize> = HashMap::new();
-
-    let width_min = 8;
-    let width_max = 80;
-    let adjustment = 1.2;
-
-    column_names
-        .iter()
-        .enumerate()
-        .for_each(|(col_index, col_name)| {
-            // Init values: add column name lengths
-            let col_len = col_name.chars_count().div_ceil(4);
-            let col_width = width_min.max(col_len);
-            max_length.insert(col_index, col_width);
-        });
-
-    lines
-        .iter()
-        //.into_par_iter() // rayon parallel iterator
-        .for_each(|line| get_length_of_column_values(line, &mut max_length));
-
-    for (index, len) in max_length {
-        let width = width_max.min(len);
-        //println!("{index:>2} {}: {width}", column_names[index]);
-        worksheet.set_column_width(index as u16, (width as f64) * adjustment)?;
-    }
-
-    Ok(())
-}
-
-/// Match through different types.
-///
-/// Font: <https://github.com/therustmonk/match_cast/blob/master/src/lib.rs>
-macro_rules! match_cast {
-    ($any:ident { $( $bind:ident as $patt:ty => $body:block , )+ }) => {{
-        let downcast = || {
-            $(
-            if let Some($bind) = $any.downcast_ref::<$patt>() {
-                return $body;
-            }
-            )+
-            None
-        };
-        downcast()
-    }};
-}
-
-/// Struct Iterable is a Rust library that provides a proc macro to make a struct iterable.
-///
-/// use struct_iterable::Iterable
-///
-/// <https://crates.io/crates/struct_iterable>
-#[allow(dead_code)]
-fn get_length_of_column_values<'de, T>(line: &T, max_length: &mut HashMap<usize, usize>)
-where
-    T: Serialize + Deserialize<'de> + InfoExtension + Iterable,
-{
-    line.iter()
-        .enumerate()
-        .for_each(|(index, (_field_name, field_value))| {
-            // Get the length of field_value: &dyn Any.
-            // <https://doc.rust-lang.org/beta/core/any/index.html>
-
-            let field_value_len: usize = match_cast!( field_value {
-                val as Option<u8> => {
-                    val.as_ref().map(|s| s.to_string().chars_count())
-                },
-                val as Option<u16> => {
-                    val.as_ref().map(|s| s.to_string().chars_count())
-                },
-                val as Option<u32> => {
-                    val.as_ref().map(|s| s.to_string().chars_count())
-                },
-                val as Option<usize> => {
-                    val.as_ref().map(|s| s.to_string().chars_count())
-                },
-                val as Option<f64> => {
-                    val.as_ref().map(|f| f.to_string().chars_count())
-                },
-                val as Option<NaiveDate> => {
-                    val.as_ref().map(|date| date.to_string().chars_count())
-                },
-                val as Option<String> => {
-                    val.as_deref().map(|s| s.chars_count())
-                },
-                val as String => {
-                    Some(val.chars_count())
-                },
-                val as Vec<String> => {
-                    //Some(val.iter().map(|s| s.chars_count()).sum())
-                    // use itertools;
-                    Some(val.iter().join(", ").chars_count())
-                },
-            })
-            .unwrap_or(format!("{field_value:?}").chars_count());
-
-            let length: usize = *max_length.get(&index).unwrap_or(&0);
-
-            if field_value_len > length {
-                max_length.insert(index, field_value_len);
-            }
-        });
 }
