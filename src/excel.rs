@@ -16,7 +16,7 @@ const MAX_NUMBER_OF_ROWS: usize = 1_000_000;
 /// <https://docs.rs/rust_xlsxwriter/latest/rust_xlsxwriter/serializer/index.html>
 pub fn write_xlsx<'de, T, P>(lines: &[T], sheet_name: &str, output_file: P) -> MyResult<()>
 where
-    P: AsRef<Path> + std::marker::Copy + std::fmt::Debug,
+    P: AsRef<Path> + std::fmt::Debug,
     T: Serialize + Deserialize<'de> + XlsxSerialize, // + Sync + Send
 {
     if lines.is_empty() {
@@ -43,7 +43,7 @@ where
     }
 
     // Save the workbook to disk.
-    workbook.save(output_file).inspect_err(|e| {
+    workbook.save(output_file.as_ref()).inspect_err(|e| {
         // Add a custom error message
         eprintln!("fn write_xlsx()");
         eprintln!("File {:?}", output_file);
