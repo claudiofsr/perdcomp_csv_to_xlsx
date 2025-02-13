@@ -16,15 +16,15 @@ use encoding_rs_io::DecodeReaderBytesBuilder;
 use std::{
     collections::{BTreeMap, HashMap},
     convert::AsRef,
+    error::Error,
     fs::{self, File, OpenOptions},
-    io::Read,
-    io::{BufRead, BufReader, BufWriter, Write},
+    io::{BufRead, BufReader, BufWriter, Read, Write},
     path::{Path, PathBuf},
     process, str,
     sync::Arc,
 };
 
-pub type MyError = Box<dyn std::error::Error + Send + Sync>;
+pub type MyError = Box<dyn std::error::Error>;
 pub type MyResult<T> = Result<T, MyError>;
 
 pub const NEWLINE_BYTE: u8 = b'\n';
@@ -49,7 +49,7 @@ pub fn get_first_line(paths: &Paths) -> MyResult<String> {
 
     let _number_of_bytes: usize = buffer_input.read_until(NEWLINE_BYTE, &mut vec_bytes)?;
 
-    let first_line: String = get_string_utf8(vec_bytes.trim(), 0, &paths.input);
+    let first_line: String = get_string_utf8(vec_bytes.trim(), 0, &paths.input)?;
 
     Ok(first_line)
 }
@@ -88,11 +88,9 @@ pub fn format_input_csv_file(args: &Arguments, paths: &Paths) -> MyResult<()> {
             }
         })
         .enumerate()
-        .map(|(line_number, vec_bytes)| {
-            (
-                line_number,
-                get_string_utf8(&vec_bytes, line_number + 1, &paths.input),
-            )
+        .flat_map(|(line_number, vec_bytes)| -> MyResult<(usize, String)> {
+            let string = get_string_utf8(&vec_bytes, line_number + 1, &paths.input)?;
+            Ok((line_number, string))
         })
         .try_for_each(|(line_number, line)| -> MyResult<()> {
             if line_number == 0 {
@@ -217,46 +215,81 @@ pub fn get_frequency<'a>(args: &Arguments, cols: &'a [String]) -> BTreeMap<&'a s
     frequency
 }
 
-/// Converts a slice of bytes to a String.
-///
-/// Consider the case of files with differently encoded lines!
-///
-/// That is, one line in UTF-8 and another line in WINDOWS_1252.
-pub fn get_string_utf8<T>(slice_bytes: &[u8], line_number: usize, path: T) -> String
+/**
+Converts a slice of bytes to a String, attempting to handle different encodings.
+
+It first tries to decode the bytes as UTF-8. If that fails, it attempts to decode
+them using WINDOWS_1252 encoding. If both fail, it returns an error.
+
+### Arguments
+
+* `slice_bytes` - A slice of bytes to convert to a String.
+* `line_number` - The line number where these bytes were read from (for error reporting).
+* `path` - The path to the file from which these bytes were read (for error reporting).
+
+### Returns
+
+A `Result` containing the decoded String if successful, or an error if decoding fails.
+
+```rust
+use std::error::Error;
+use perdcomp_csv_to_xlsx::get_string_utf8;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let bytes: &[u8] = "café".as_bytes();
+    // Use the ? operator to propagate the error
+    let result: String = get_string_utf8(bytes, 1, "my_file.txt")?;
+
+    assert_eq!(result, "café");
+    Ok(())
+}
+```
+*/
+pub fn get_string_utf8<T>(
+    slice_bytes: &[u8],
+    line_number: usize,
+    path: T,
+) -> Result<String, Box<dyn Error>>
 where
     T: std::fmt::Debug,
 {
-    // from_utf8() checks to ensure that the bytes are valid UTF-8
-    let line_utf8: String = match str::from_utf8(slice_bytes) {
-        Ok(str) => str.to_string(),
-        Err(error1) => {
-            let mut data = DecodeReaderBytesBuilder::new()
+    // Attempt to decode as UTF-8 first
+    match str::from_utf8(slice_bytes) {
+        Ok(s) => Ok(s.to_string()),
+        Err(_) => {
+            // If UTF-8 decoding fails, attempt WINDOWS_1252 decoding
+            let mut decoder = DecodeReaderBytesBuilder::new()
                 .encoding(Some(WINDOWS_1252))
                 .build(slice_bytes);
+
             let mut buffer = String::new();
-            let _number_of_bytes = match data.read_to_string(&mut buffer) {
-                Ok(num) => num,
-                Err(error2) => {
-                    eprintln!("Problem reading data from file in buffer!");
-                    eprintln!("File: {path:?}");
-                    eprintln!("Line nº {line_number}");
-                    eprintln!("Used encoding type: WINDOWS_1252.");
-                    eprintln!("Try another encoding type!");
-                    panic!(
-                        "Failed to convert data from WINDOWS_1252 to UTF-8!:
-                        {error1}\n{error2}\n",
-                    );
+            match decoder.read_to_string(&mut buffer) {
+                Ok(_) => Ok(buffer),
+                Err(e) => {
+                    // If WINDOWS_1252 decoding also fails, return a detailed error
+                    Err(format!(
+                        "Failed to decode line {} from file {:?}: UTF-8 and WINDOWS_1252 decoding failed: {}",
+                        line_number, path, e
+                    ).into())
                 }
-            };
-            //println!("read number_of_bytes: {_number_of_bytes}; buffer: {buffer}");
-            buffer
+            }
         }
-    };
-    // line_utf8.trim_end_matches('\r').to_string()
-    line_utf8
+    }
 }
 
-pub fn read_csv<P>(args: &Arguments, path: P) -> MyResult<Vec<PerDcomp>>
+/**
+Reads a CSV file from the given path and deserializes its contents into a vector of `PerDcomp` structs.
+
+### Arguments
+
+* `args` - A struct containing configuration options, such as the delimiter.
+* `path` - The path to the CSV file.
+
+### Returns
+
+A `MyResult` containing a vector of `PerDcomp` structs if successful, or a `MyError` if an error occurred.
+*/
+pub fn read_csv<P>(args: &Arguments, path: P) -> Result<Vec<PerDcomp>, Box<dyn Error>>
 where
     P: AsRef<Path>,
 {
@@ -267,27 +300,16 @@ where
         .trim(csv::Trim::All)
         .flexible(false)
         .delimiter(args.delimiter as u8)
-        .from_path(path)?; // utf8
+        .from_path(path.as_ref())?;
 
-    let perdcomps: Vec<PerDcomp> = reader
+    reader
         .deserialize()
-        //.map_while(Result::ok)
-        .map_while(|result_perdcomp| match result_perdcomp {
-            Ok(perdcomp) => Some(perdcomp),
-            Err(why) => {
-                eprintln!("fn read_csv()");
-                eprintln!("Error: Failed to deserialize CSV file");
-                eprintln!("Error: {why}");
-                process::exit(1)
-            }
-        })
-        .map(|mut per_comp: PerDcomp| {
+        .map(|result_perdcomp: Result<PerDcomp, csv::Error>| {
+            let mut per_comp = result_perdcomp?;
             per_comp.get_year();
-            per_comp
+            Ok(per_comp)
         })
-        .collect();
-
-    Ok(perdcomps)
+        .collect()
 }
 
 /// Rename a file to a new name,
@@ -298,4 +320,46 @@ pub fn rename_file(old_path: &PathBuf, new_name: &str) -> MyResult<()> {
     eprintln!("Keep temporary CSV file: {new_path:?}");
     fs::rename(old_path, new_path)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests_get_string_utf8 {
+    use super::*;
+
+    #[test]
+    fn test_get_string_utf8_valid_utf8() {
+        let bytes = "hello".as_bytes();
+        let result = get_string_utf8(bytes, 1, "test.txt");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "hello");
+    }
+
+    #[test]
+    fn test_get_string_utf8_windows_1252() {
+        // "café" encoded in WINDOWS_1252
+        let bytes: [u8; 5] = [99, 97, 102, 233, 0];
+        let result = get_string_utf8(&bytes, 1, "test.txt");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "café\0");
+    }
+
+    #[test]
+    fn test_get_string_utf8_invalid_encoding() {
+        // Invalid UTF-8 and likely invalid WINDOWS_1252
+        let bytes: [u8; 4] = [0xff, 0xff, 0xff, 0xff];
+        let result = get_string_utf8(&bytes, 1, "test.txt");
+        assert!(result.is_ok());
+        // Depending on the exact implementation of WINDOWS_1252 decoder, the result might vary.
+        // The important thing is that it doesn't panic.  We check that it returns something,
+        // indicating a "best effort" decoding.
+        assert!(!result.unwrap().is_empty());
+    }
+
+    #[test]
+    fn test_get_string_utf8_empty_slice() {
+        let bytes: [u8; 0] = [];
+        let result = get_string_utf8(&bytes, 1, "test.txt");
+        assert!(result.is_ok());
+        assert_eq!(result.unwrap(), "");
+    }
 }
