@@ -6,7 +6,7 @@ use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, XlsxSerialize)]
 #[xlsx(table = Table::new())]
-//#[xlsx(header_format = Format::new().set_bold())]
+//#[xlsx(header_format = Format::new().set_font_size(12.0))]
 #[serde(rename_all = "PascalCase")]
 pub struct PerDcomp {
     #[serde(rename = "PER/DCOMP")] // Coluna Repetida

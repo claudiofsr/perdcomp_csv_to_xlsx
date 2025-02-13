@@ -6,7 +6,7 @@ use std::path::Path;
 
 use crate::MyResult;
 
-const FONT_SIZE: f64 = 12.0;
+const FONT_SIZE: f64 = 10.0;
 const MAX_NUMBER_OF_ROWS: usize = 1_000_000;
 
 /// Write XLSX File according to some struct T
