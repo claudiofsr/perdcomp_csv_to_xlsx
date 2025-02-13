@@ -268,7 +268,7 @@ where
                 Err(e) => {
                     // If WINDOWS_1252 decoding also fails, return a detailed error
                     Err(format!(
-                        "Failed to decode line {} from file {:?}: UTF-8 and WINDOWS_1252 decoding failed: {}",
+                        "Failed to decode line {} from file {:?}\nUTF-8 and WINDOWS_1252 decoding failed: {}",
                         line_number, path, e
                     ).into())
                 }
