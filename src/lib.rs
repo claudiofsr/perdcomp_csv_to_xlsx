@@ -1,12 +1,10 @@
 mod args;
 mod excel;
-mod get_field_names;
 mod regex;
 mod structures;
 
 pub use args::Arguments;
 pub use excel::write_xlsx;
-pub use get_field_names::GetFieldNames;
 pub use regex::*;
 pub use structures::PerDcomp;
 

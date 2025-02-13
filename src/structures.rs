@@ -1,51 +1,63 @@
-use crate::{excel::InfoExtension, GetFieldNames, REGEX_DDMMYYYY, REGEX_TRIMESTRE_ANO};
+use crate::REGEX_TRIMESTRE_ANO;
 
-use chrono::{Datelike, NaiveDate};
-use rust_xlsxwriter::serialize_chrono_naive_to_excel;
+use chrono::NaiveDate;
+use rust_xlsxwriter::XlsxSerialize;
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
-const FORMAT_DDMMYYYY: &str = "%-d/%-m/%Y"; // %Y: year, zero-padded to 4 digits.
-const FORMAT_DDMMYY: &str = "%-d/%-m/%y"; // %y: year, zero-padded to 2 digits.
-
-//#[serde_as]
-#[derive(Debug, Default, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize, XlsxSerialize)]
+#[xlsx(table = Table::new())]
+//#[xlsx(header_format = Format::new().set_bold())]
+#[serde(rename_all = "PascalCase")]
 pub struct PerDcomp {
     #[serde(rename = "PER/DCOMP")] // Coluna Repetida
+    #[xlsx(value_format = Format::new().set_bold().set_align(FormatAlign::Center))]
     pub per_dcomp: Option<String>,
 
     #[serde(rename = "CNPJ/CPF Declarante/Sucessora")]
+    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
     pub cnpj_declarante: Option<String>,
 
     #[serde(rename = "Tipo Crédito")]
     pub tipo_do_credito: Option<String>,
 
     #[serde(rename = "Valor Total Crédito", deserialize_with = "string_as_f64")]
+    #[xlsx(value_format = Format::new().set_num_format("#,##0.00"))]
     pub valor_total_do_credito: f64,
 
     #[serde(
         rename = "Valor Crédito Data Transmissão",
         deserialize_with = "string_as_f64"
     )]
+    #[xlsx(value_format = Format::new().set_num_format("#,##0.00"))]
     pub valor_do_credito_na_data_de_transmissao: f64,
 
     #[serde(
         rename = "Valor Total Débitos/Valor Pedido Rest/Ress.",
         deserialize_with = "string_as_f64"
     )]
+    #[xlsx(value_format = Format::new().set_num_format("#,##0.00"))]
+    #[xlsx(
+        //column_width = 10.0,
+        //column_width_pixels = 20,
+        value_format = Format::new()
+            .set_bold()
+            .set_num_format("#,##0.00")
+            //.set_font_color(Color::Blue)
+            .set_align(FormatAlign::Right)
+    )]
     pub valor_do_per: f64,
 
-    //#[serde(rename = "Data da Transmissão", with = "my_date_format")]
-    #[serde(
-        rename = "Data Transmissão",
-        deserialize_with = "string_as_date",
-        serialize_with = "serialize_chrono_naive_to_excel"
-    )]
-    pub data_da_transmissao: NaiveDate,
+    #[serde(default)]
+    #[serde(rename = "Data Transmissão", with = "option_date")]
+    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
+    pub data_da_transmissao: Option<NaiveDate>,
 
     #[serde(rename = "Demonstra Crédito")]
+    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
     pub demonstra_credito: Option<String>,
 
     #[serde(rename = "Pendente Atuação")]
+    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
     pub pendente_atuacao: Option<String>,
 
     #[serde(rename = "Tipo Documento")]
@@ -58,12 +70,15 @@ pub struct PerDcomp {
     pub ua_declarante: Option<String>,
 
     #[serde(rename = "Detentor Crédito")]
+    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
     pub cnpj_detentor_do_credito: Option<String>,
 
     #[serde(rename = "Período Apuração Crédito")]
+    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
     pub trimestre_de_apuracao: Option<String>,
 
     #[serde(rename = "Ano")]
+    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
     pub ano: Option<u32>,
 
     #[serde(rename = "Período Apuração Pagamento")]
@@ -71,9 +86,11 @@ pub struct PerDcomp {
 
     #[serde(default)]
     #[serde(rename = "Data 1ª DCOMP Ativa", with = "option_date")]
+    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
     pub data_dcomp_ativa: Option<NaiveDate>,
 
     #[serde(rename = "PER/DCOMP Ativo com Demonstrativo de Crédito")]
+    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
     pub per_ativo_com_credito: Option<String>,
 
     #[serde(rename = "Processo Atribuído PER/DCOMP")]
@@ -139,10 +156,6 @@ impl PerDcomp {
     }
 }
 
-/// <https://doc.rust-lang.org/book/ch10-02-traits.html#default-implementations>
-impl InfoExtension for PerDcomp {}
-impl GetFieldNames for PerDcomp {}
-
 /// Deserializes a string into an `f64`.
 ///
 /// This function attempts to parse a string into an `f64`, handling common
@@ -177,107 +190,6 @@ where
     })
 }
 
-/// Deserializes a string into a `NaiveDate`.
-///
-/// It attempts to parse the string using the following formats:
-/// - dd/mm/yyyy
-/// - dd/mm/yy
-///
-/// The function first uses a regular expression to validate the basic format
-/// and then attempts to parse the string using `NaiveDate::parse_from_str`.
-///
-/// Returns a `NaiveDate` if parsing is successful, or a `serde::de::Error` if not.
-pub fn string_as_date<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    // Deserialize the string.
-    let string = String::deserialize(deserializer)?;
-
-    // Validate the date format using a regular expression.
-    let captures = REGEX_DDMMYYYY.captures(&string).ok_or_else(|| {
-        Error::custom(format!(
-            "\nfn string_as_date()\nInvalid date format: '{}'. Expected dd/mm/yy or dd/mm/yyyy.",
-            string
-        ))
-    })?;
-
-    // Extract day, month, and year from the regex captures.
-    let d = captures.get(1).map_or("", |m| m.as_str());
-    let m = captures.get(2).map_or("", |m| m.as_str());
-    let y = captures.get(3).map_or("", |m| m.as_str());
-
-    // Format the date string for parsing.
-    let formatted_date = format!("{}/{}/{}", d, m, y);
-
-    // Attempt to parse the date using both formats.
-    let result_date1 = NaiveDate::parse_from_str(&formatted_date, FORMAT_DDMMYYYY);
-    let result_date2 = NaiveDate::parse_from_str(&formatted_date, FORMAT_DDMMYY);
-
-    // Match the parsing results and return the valid date, prioritizing 4-digit years.
-    match (result_date1, result_date2) {
-        (Ok(date1), _) if date1.year() >= 1000 => Ok(date1), // Retain only the year consisting of 4 digits
-        (_, Ok(date2)) if date2.year() >= 1000 => Ok(date2), // Retain only the year consisting of 4 digits
-        _ => Err(Error::custom(format!(
-            "\nfn string_as_date()\nInvalid date: '{}' (formatted: '{}').  Expected format dd/mm/yy or dd/mm/yyyy.",
-            string, formatted_date
-        ))),
-    }
-}
-
-// Font: https://serde.rs/custom-date-format.html
-#[allow(dead_code)]
-mod my_date_format {
-    use chrono::{Datelike, NaiveDate};
-    use serde::{self, de::Error, Deserialize, Deserializer, Serializer};
-
-    // The signature of a serialize_with function must follow the pattern:
-    //
-    //    fn serialize<S>(&T, S) -> Result<S::Ok, S::Error>
-    //    where
-    //        S: Serializer
-    //
-    // although it may also be generic over the input types T.
-    pub fn serialize<S>(date: &NaiveDate, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        //const FORMAT: &str = "%-d/%-m/%Y";
-        //let string = format!("{}", date.format(FORMAT));
-
-        let year: i32 = date.year();
-        let month: u32 = date.month();
-        let day: u32 = date.day();
-
-        let string = format!("{day:02}/{month:02}/{year:04}");
-        serializer.serialize_str(&string)
-    }
-
-    // The signature of a deserialize_with function must follow the pattern:
-    //
-    //    fn deserialize<'de, D>(D) -> Result<T, D::Error>
-    //    where
-    //        D: Deserializer<'de>
-    //
-    // although it may also be generic over the output types T.
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        const FORMAT: &str = "%-d/%-m/%Y %H:%M:%S";
-
-        let string = String::deserialize(deserializer)?;
-        let dt = NaiveDate::parse_from_str(&string, FORMAT).map_err({
-            //eprintln!("NaiveDate Error: {string}");
-            Error::custom
-        })?;
-        Ok(dt)
-    }
-}
-
-// Font: https://stackoverflow.com/questions/44301748/how-can-i-deserialize-an-optional-field-with-custom-functions-using-serde
-// https://play.rust-lang.org/?version=stable&mode=debug&edition=2018&gist=d4e3ff1407b518c7848a4ef31b4cf05c
-// https://github.com/serde-rs/serde/issues/1425
 mod option_date {
     use chrono::NaiveDate;
     use serde::{de::Error, Deserialize, Deserializer, Serializer};
@@ -345,65 +257,6 @@ mod option_date {
 }
 
 #[cfg(test)]
-mod functions {
-    use super::*;
-    use crate::MyResult;
-    use serde_json::json;
-
-    // cargo test -- --help
-    // cargo test -- --nocapture
-    // cargo test -- --show-output
-
-    #[test]
-    /// cargo test -- --show-output get_headers_from_per_dcomp
-    fn get_headers_from_per_dcomp() -> MyResult<()> {
-        let headers = PerDcomp::get_field_names();
-        println!("headers: {headers:#?}");
-        assert_eq!(headers[0], "PER/DCOMP");
-        //assert_eq!(headers[59], "PER/DCOMP [2]");
-        Ok(())
-    }
-
-    #[test]
-    /// cargo test -- --show-output deserialize_date_and_vale
-    fn deserialize_date_and_vale() -> MyResult<()> {
-        // Some struct
-        #[derive(Deserialize, Debug, PartialEq)]
-        struct TestStruct {
-            #[serde(deserialize_with = "string_as_date")]
-            date: NaiveDate,
-            #[serde(deserialize_with = "string_as_f64")]
-            value: f64,
-        }
-
-        let dates = [
-            " 25-05-2023 09:13:20 ",
-            "25/05/2023 12:39:04",
-            "25/05/23 12:39:04",
-            "25/05/23 12:39",
-            "25/05/2023",
-        ];
-
-        let expected = TestStruct {
-            date: NaiveDate::from_ymd_opt(2023, 5, 25).unwrap(),
-            value: 1.234,
-        };
-
-        println!("expected: {expected:#?}");
-
-        for date in dates {
-            let json = json!(
-                {"date": date, "value": "1,2340"}
-            );
-            let result: TestStruct = serde_json::from_value(json).unwrap();
-            assert_eq!(result, expected);
-        }
-
-        Ok(())
-    }
-}
-
-#[cfg(test)]
 mod tests_string_as_f64 {
     use super::*;
     use serde::Deserialize;
@@ -450,86 +303,6 @@ mod tests_string_as_f64 {
         let expected = TestStruct { value: 1234.56 };
         let result: TestStruct = serde_json::from_str(json).unwrap();
         assert_eq!(result, expected);
-    }
-}
-
-#[cfg(test)]
-mod tests_string_as_date {
-    use super::*;
-    use serde::Deserialize;
-
-    #[derive(Debug, PartialEq, Deserialize)]
-    struct TestStruct {
-        #[serde(deserialize_with = "string_as_date")]
-        date: NaiveDate,
-    }
-
-    #[test]
-    fn test_valid_date_ddmmyyyy() {
-        let json = r#"{"date": "20/01/2024"}"#;
-        let expected_date = NaiveDate::from_ymd_opt(2024, 1, 20).unwrap();
-        let expected_struct = TestStruct {
-            date: expected_date,
-        };
-        let actual_struct: Result<TestStruct, _> = serde_json::from_str(json);
-        assert_eq!(actual_struct.unwrap(), expected_struct);
-    }
-
-    #[test]
-    fn test_valid_date_ddmmyy() {
-        let json = r#"{"date": "20-07-24"}"#;
-        let expected_date = NaiveDate::from_ymd_opt(2024, 7, 20).unwrap();
-        let expected_struct = TestStruct {
-            date: expected_date,
-        };
-        let actual_struct: Result<TestStruct, _> = serde_json::from_str(json);
-        assert_eq!(actual_struct.unwrap(), expected_struct);
-    }
-
-    #[test]
-    fn test_invalid_date_format() {
-        let json = r#"{"date": "20-13-2024"}"#;
-        let actual_struct: Result<TestStruct, _> = serde_json::from_str(json);
-        assert!(actual_struct.is_err());
-    }
-
-    #[test]
-    fn test_invalid_date_value() {
-        let json = r#"{"date": "32/01/2024"}"#;
-        let actual_struct: Result<TestStruct, _> = serde_json::from_str(json);
-        assert!(actual_struct.is_err());
-    }
-
-    #[test]
-    fn test_incomplete_date() {
-        let json = r#"{"date": "20/01/"}"#;
-        let actual_struct: Result<TestStruct, _> = serde_json::from_str(json);
-        assert!(actual_struct.is_err());
-    }
-
-    #[test]
-    fn test_empty_date() {
-        let json = r#"{"date": ""}"#;
-        let actual_struct: Result<TestStruct, _> = serde_json::from_str(json);
-        assert!(actual_struct.is_err());
-    }
-
-    #[test]
-    fn test_invalid_characters() {
-        let json = r#"{"date": "20/AB/2024"}"#;
-        let actual_struct: Result<TestStruct, _> = serde_json::from_str(json);
-        assert!(actual_struct.is_err());
-    }
-
-    #[test]
-    fn test_short_year_out_of_range() {
-        let json = r#"{"date": "20/01/00"}"#; // Year 2000
-        let expected_date = NaiveDate::from_ymd_opt(2000, 1, 20).unwrap();
-        let expected_struct = TestStruct {
-            date: expected_date,
-        };
-        let actual_struct: Result<TestStruct, _> = serde_json::from_str(json);
-        assert_eq!(actual_struct.unwrap(), expected_struct);
     }
 }
 
