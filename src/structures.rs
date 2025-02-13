@@ -1,12 +1,8 @@
-use serde::{de::Error, Deserialize, Deserializer, Serialize};
-
-//use serde_json;
-//use serde_with::{serde_as, OneOrMany, Map, DisplayFromStr};
+use crate::{excel::InfoExtension, GetFieldNames, REGEX_DDMMYYYY, REGEX_TRIMESTRE_ANO};
 
 use chrono::{Datelike, NaiveDate};
-
-use crate::{excel::InfoExtension, GetFieldNames, REGEX_DDMMYYYY, REGEX_TRIMESTRE_ANO};
 use rust_xlsxwriter::serialize_chrono_naive_to_excel;
+use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
 const FORMAT_DDMMYYYY: &str = "%-d/%-m/%Y"; // %Y: year, zero-padded to 4 digits.
 const FORMAT_DDMMYY: &str = "%-d/%-m/%y"; // %y: year, zero-padded to 2 digits.
