@@ -1,7 +1,7 @@
 use crate::REGEX_TRIMESTRE_ANO;
 
 use chrono::NaiveDate;
-use rust_xlsxwriter::XlsxSerialize;
+use rust_xlsxwriter::{serialize_chrono_option_naive_to_excel, XlsxSerialize};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
 
 #[derive(Debug, Default, Serialize, Deserialize, XlsxSerialize)]
@@ -48,8 +48,15 @@ pub struct PerDcomp {
     pub valor_do_per: f64,
 
     #[serde(default)]
-    #[serde(rename = "Data Transmissão", with = "option_date")]
-    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
+    #[serde(
+        rename = "Data Transmissão",
+        deserialize_with = "string_as_date",
+        serialize_with = "serialize_chrono_option_naive_to_excel"
+    )]
+    #[xlsx(value_format = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_num_format("dd/mm/yyyy")
+    )]
     pub data_da_transmissao: Option<NaiveDate>,
 
     #[serde(rename = "Demonstra Crédito")]
@@ -85,8 +92,15 @@ pub struct PerDcomp {
     pub pa_pagamento: Option<String>,
 
     #[serde(default)]
-    #[serde(rename = "Data 1ª DCOMP Ativa", with = "option_date")]
-    #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
+    #[serde(
+        rename = "Data 1ª DCOMP Ativa",
+        deserialize_with = "string_as_date",
+        serialize_with = "serialize_chrono_option_naive_to_excel"
+    )]
+    #[xlsx(value_format = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_num_format("dd/mm/yyyy")
+    )]
     pub data_dcomp_ativa: Option<NaiveDate>,
 
     #[serde(rename = "PER/DCOMP Ativo com Demonstrativo de Crédito")]
@@ -190,69 +204,51 @@ where
     })
 }
 
-mod option_date {
-    use chrono::NaiveDate;
-    use serde::{de::Error, Deserialize, Deserializer, Serializer};
+// Define the expected date format.
+// Using a constant improves readability and maintainability.
+const FORMAT: &str = "%-d/%-m/%Y";
 
-    // Define the expected date format.  Using a constant improves readability and maintainability.
-    const FORMAT: &str = "%-d/%-m/%Y";
-    //const FORMAT: &str = "%-d/%-m/%YT%H:%M:%S%z";
+/// Deserializes an `Option<NaiveDate>` from a string.
+///
+/// It attempts to parse the string according to `FORMAT`.  It handles variations in input
+/// by replacing hyphens with slashes and splitting on whitespace or 'T' to isolate the date part.
+///
+/// Returns `Some(NaiveDate)` if parsing is successful, `None` otherwise.
+pub fn string_as_date<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    // Deserialize the input into an Option<String>.
+    // This handles the case where the input is null/None.
+    let optional_string: Option<String> = Option::deserialize(deserializer)?;
 
-    /// Serializes an `Option<NaiveDate>` to a string representation.
-    ///
-    /// If the date is `Some`, it's formatted according to `FORMAT` and serialized as a string.
-    /// If the date is `None`, it's serialized as a `None` value (e.g., `null` in JSON).
-    pub fn serialize<S>(date: &Option<NaiveDate>, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        match date {
-            Some(d) => serializer.serialize_str(&d.format("%d/%m/%Y").to_string()),
-            None => serializer.serialize_none(),
+    match optional_string {
+        Some(string) => {
+            // Preprocess the string to handle different separators.
+            // string: "17-2-2014 16:32:52.34" or "17/02/2014T16:32:52.34" or "17/02/2014"
+            let normalized_string = string.replace('-', "/");
+
+            // Split the string to isolate the date part.
+            let parts: Vec<&str> = normalized_string
+                .trim()
+                .split(|c: char| c.is_ascii_whitespace() || c == 'T')
+                .collect();
+
+            // Get the first part, which should be the date.
+            let date_str = parts.first().map_or("", |&s| s);
+
+            // Attempt to parse the date string.
+            NaiveDate::parse_from_str(date_str, FORMAT)
+                .map(Some) // Convert the successful parse to Some(NaiveDate)
+                .map_err(|error| {
+                    // Include the original error message
+                    let msg = format!(
+                        "\nmod option_date\ndate: {string:?}\nFailed to parse date: {error}\n"
+                    );
+                    Error::custom(msg)
+                })
         }
-    }
-
-    /// Deserializes an `Option<NaiveDate>` from a string.
-    ///
-    /// It attempts to parse the string according to `FORMAT`.  It handles variations in input
-    /// by replacing hyphens with slashes and splitting on whitespace or 'T' to isolate the date part.
-    ///
-    /// Returns `Some(NaiveDate)` if parsing is successful, `None` otherwise.
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        // Deserialize the input into an Option<String>.  This handles the case where the input is null/None.
-        let optional_string: Option<String> = Option::deserialize(deserializer)?;
-
-        match optional_string {
-            Some(string) => {
-                // Preprocess the string to handle different separators.
-                // string: "17-2-2014 16:32:52.34" or "17/02/2014T16:32:52.34" or "17/02/2014"
-                let normalized_string = string.replace('-', "/");
-
-                // Split the string to isolate the date part.
-                let parts: Vec<&str> = normalized_string
-                    .trim()
-                    .split(|c: char| c.is_ascii_whitespace() || c == 'T')
-                    .collect();
-
-                // Get the first part, which should be the date.
-                let date_str = parts.first().map_or("", |&s| s);
-
-                // Attempt to parse the date string.
-                NaiveDate::parse_from_str(date_str, FORMAT)
-                    .map(Some) // Convert the successful parse to Some(NaiveDate)
-                    .map_err(|error| {
-                        // Include the original error message
-                        let msg = format!(
-                            "\nmod option_date\ndate: {string:?}\nFailed to parse date: {error}\n"
-                        );
-                        Error::custom(msg)
-                    })
-            }
-            None => Ok(None), // If the input was None, return None.
-        }
+        None => Ok(None), // If the input was None, return None.
     }
 }
 
@@ -307,32 +303,19 @@ mod tests_string_as_f64 {
 }
 
 #[cfg(test)]
-mod option_date_tests {
-    use super::option_date;
+mod string_as_date_tests {
+    use crate::structures::string_as_date;
     use chrono::NaiveDate;
+    use rust_xlsxwriter::serialize_chrono_option_naive_to_excel;
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, PartialEq, Serialize, Deserialize)]
     struct TestStruct {
-        #[serde(with = "option_date")]
+        #[serde(
+            deserialize_with = "string_as_date",
+            serialize_with = "serialize_chrono_option_naive_to_excel"
+        )]
         date: Option<NaiveDate>,
-    }
-
-    #[test]
-    fn test_serialize_some_date() {
-        let date = NaiveDate::from_ymd_opt(2024, 1, 2).unwrap();
-        let test_struct = TestStruct { date: Some(date) };
-        let expected_json = r#"{"date":"02/01/2024"}"#;
-        let actual_json = serde_json::to_string(&test_struct).unwrap();
-        assert_eq!(actual_json, expected_json);
-    }
-
-    #[test]
-    fn test_serialize_none_date() {
-        let test_struct = TestStruct { date: None };
-        let expected_json = r#"{"date":null}"#;
-        let actual_json = serde_json::to_string(&test_struct).unwrap();
-        assert_eq!(actual_json, expected_json);
     }
 
     #[test]
