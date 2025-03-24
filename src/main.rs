@@ -38,7 +38,9 @@ fn main() -> MyResult<()> {
         output: temporary.path().into(),      // Temp file
     };
 
-    dbg!(&paths);
+    if arguments.verbose {
+        dbg!(&paths);
+    }
     //let first_line = get_first_line(&paths)?;
     //println!("first_line: {first_line:?}");
 
