@@ -24,7 +24,7 @@ execution-time = "0.3"
 regex = { version = "1.11", features = ["unicode"] }
 rayon = "1.10"
 serde_json = "1.0"
-tempfile = "3.17"
+tempfile = "3.19"
 
 [dependencies.clap]
 version = "4.5"

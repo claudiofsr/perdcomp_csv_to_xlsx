@@ -206,7 +206,8 @@ where
 
 // Define the expected date format.
 // Using a constant improves readability and maintainability.
-const FORMAT: &str = "%-d/%-m/%Y";
+const FORMAT_1: &str = "%-d/%-m/%Y"; // 17-2-2014
+const FORMAT_2: &str = "%Y/%-m/%-d"; // 2023-04-20
 
 /// Deserializes an `Option<NaiveDate>` from a string.
 ///
@@ -237,16 +238,24 @@ where
             // Get the first part, which should be the date.
             let date_str = parts.first().map_or("", |&s| s);
 
-            // Attempt to parse the date string.
-            NaiveDate::parse_from_str(date_str, FORMAT)
-                .map(Some) // Convert the successful parse to Some(NaiveDate)
-                .map_err(|error| {
-                    // Include the original error message
-                    let msg = format!(
-                        "\nmod option_date\ndate: {string:?}\nFailed to parse date: {error}\n"
-                    );
-                    Error::custom(msg)
-                })
+            let mut error_msg = String::new();
+
+            for format in [FORMAT_1, FORMAT_2] {
+                // Convert the successful parse to Some(NaiveDate)
+                let opt_date = NaiveDate::parse_from_str(date_str, format);
+
+                match opt_date {
+                    Ok(date) => return Ok(Some(date)),
+                    Err(parse_error) => {
+                        // Include the original error message
+                        error_msg = format!(
+                            "\nfn string_as_date\ndate: {string:?}\nFailed to parse date: {parse_error}\n"
+                        );
+                    }
+                }
+            }
+
+            Err(Error::custom(error_msg))
         }
         None => Ok(None), // If the input was None, return None.
     }
