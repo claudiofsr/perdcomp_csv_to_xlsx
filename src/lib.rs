@@ -145,7 +145,8 @@ pub fn get_fields_without_duplication(line: &str, args: &Arguments) -> String {
     let fields = fields_without_duplication.join(&args.delimiter.to_string());
 
     if args.verbose {
-        println!("These fields are the column names:");
+        let length = fields_without_duplication.len();
+        println!("These {length} fields are the column names:");
         println!("fields_without_duplication: {fields_without_duplication:#?}\n");
     }
 
