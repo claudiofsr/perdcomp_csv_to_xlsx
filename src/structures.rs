@@ -238,7 +238,7 @@ where
             // Get the first part, which should be the date.
             let date_str = parts.first().map_or("", |&s| s);
 
-            let mut error_msg = String::new();
+            let mut error_msgs: Vec<String> = Vec::new();
 
             for format in [FORMAT_1, FORMAT_2] {
                 // Convert the successful parse to Some(NaiveDate)
@@ -248,14 +248,15 @@ where
                     Ok(date) => return Ok(Some(date)),
                     Err(parse_error) => {
                         // Include the original error message
-                        error_msg = format!(
+                        let error_msg = format!(
                             "\nfn string_as_date\ndate: {string:?}\nFailed to parse date: {parse_error}\n"
                         );
+                        error_msgs.push(error_msg);
                     }
                 }
             }
 
-            Err(Error::custom(error_msg))
+            Err(Error::custom(error_msgs.join("\n")))
         }
         None => Ok(None), // If the input was None, return None.
     }
