@@ -364,3 +364,87 @@ mod tests_get_string_utf8 {
         assert_eq!(result.unwrap(), "");
     }
 }
+
+#[cfg(test)]
+mod test_my_perdcomp {
+    use super::*;
+    use rust_xlsxwriter::XlsxSerialize;
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Debug, Default, Serialize, Deserialize, XlsxSerialize)]
+    #[xlsx(table = Table::new())]
+    //#[xlsx(header_format = Format::new().set_font_size(12.0))]
+    #[serde(rename_all = "PascalCase")]
+    pub struct MyPerDcomp {
+        #[serde(rename = "PER/DCOMP")] // Coluna Repetida
+        #[xlsx(value_format = Format::new().set_bold().set_align(FormatAlign::Center))]
+        pub per_dcomp: Option<String>,
+
+        #[serde(rename = "CNPJ/CPF Declarante/Sucessora")]
+        #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
+        pub cnpj_declarante: Option<String>,
+
+        #[serde(rename = "Tipo Crédito")]
+        pub tipo_do_credito: Option<String>,
+
+        #[serde(rename = "Período Apuração Crédito")]
+        #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
+        pub trimestre_de_apuracao: Option<String>,
+
+        #[serde(rename = "Ano")]
+        #[xlsx(value_format = Format::new().set_align(FormatAlign::Center))]
+        pub ano: Option<u32>,
+    }
+
+    impl MyPerDcomp {
+        pub fn get_year(&mut self) {
+            // trimestre_de_apuracao = "3º TRIMESTRE 2021"
+            if let Some(trimestre) = self.trimestre_de_apuracao.as_ref() {
+                if let Some(captures) = REGEX_TRIMESTRE_ANO.captures(trimestre) {
+                    let trim: Option<String> = captures.get(1).map(|s| s.as_str().to_string());
+                    let year: Option<u32> = captures.get(2).and_then(|s| s.as_str().parse().ok());
+
+                    self.trimestre_de_apuracao = trim;
+                    self.ano = year;
+                }
+            }
+        }
+    }
+
+    /// cargo test -- --show-output read_csv
+    #[test]
+    fn read_csv() -> MyResult<()> {
+        let data_csv = r#"
+PER/DCOMP,foo,Período Apuração Crédito,"Tipo Crédito",Valor Total Crédito
+112,"4","1º TRIMESTRE de 2021",78,"1,0"
+321,"5","2º TRIMESTRE de 2021",89,"23.543,34"
+555,"6","1º TRIMESTRE de 2020",72,"88,1"
+"#;
+
+        let mut reader = ReaderBuilder::new()
+            .quoting(true)
+            .double_quote(true)
+            .has_headers(true)
+            .trim(csv::Trim::All)
+            .flexible(false)
+            .delimiter(b',')
+            .from_reader(data_csv.as_bytes());
+
+        let result: MyResult<Vec<MyPerDcomp>> = reader
+            .deserialize()
+            .map(|result_perdcomp: Result<MyPerDcomp, csv::Error>| {
+                let mut per_comp = result_perdcomp?;
+                per_comp.get_year();
+                Ok(per_comp)
+            })
+            .collect();
+
+        let perdcomps = result?;
+
+        dbg!(&perdcomps);
+
+        assert_eq!(perdcomps.get(1).and_then(|p| p.per_dcomp.clone()), Some("321".to_string()));
+        assert_eq!(perdcomps.get(2).and_then(|p| p.ano), Some(2020));
+        Ok(())
+    }
+}
