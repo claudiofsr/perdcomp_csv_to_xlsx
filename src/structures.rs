@@ -236,7 +236,10 @@ where
                 .collect();
 
             // Get the first part, which should be the date.
-            let date_str = parts.first().map_or("", |&s| s);
+            let date_str = match parts.first() {
+                Some(dt) => dt,
+                None => return Err(Error::custom("Invalid Date")),
+            };
 
             let mut error_msgs: Vec<String> = Vec::new();
 
