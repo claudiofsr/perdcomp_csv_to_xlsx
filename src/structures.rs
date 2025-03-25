@@ -222,13 +222,15 @@ pub fn string_as_date<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::E
 where
     D: Deserializer<'de>,
 {
-    // Deserialize the input into an Option<String>. This handles cases where the input is null/None.
+    // Deserialize the input into an Option<String>.
+    // This handles cases where the input is null/None.
     let optional_string: Option<String> = Option::deserialize(deserializer)?;
 
     match optional_string {
         Some(string) => {
-            // Preprocess the string to handle different separators.  Replace hyphens with slashes
-            // for consistent parsing.  This handles cases like "17-2-2014 16:32:52.34" and "17/02/2014T16:32:52.34".
+            // Preprocess the string to handle different separators.  
+            // Replace hyphens with slashes for consistent parsing.  
+            // This handles cases like "17-2-2014 16:32:52.34" and "17/02/2014T16:32:52.34".
             let normalized_string = string.replace('-', "/");
 
             // Split the string to isolate the date part.  Split on whitespace or 'T' characters.
