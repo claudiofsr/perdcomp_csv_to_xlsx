@@ -204,8 +204,9 @@ where
     })
 }
 
-// Define the expected date format.
+// Define the expected date formats.
 // Using a constant improves readability and maintainability.
+// %-d and %-m remove leading zeros, so they accept single-digit days and months.
 const FORMAT_1: &str = "%-d/%-m/%Y"; // 17-2-2014
 const FORMAT_2: &str = "%Y/%-m/%-d"; // 2023-04-20
 
@@ -233,15 +234,15 @@ where
             // This handles cases like "17-2-2014 16:32:52.34" and "17/02/2014T16:32:52.34".
             let normalized_string = string.replace('-', "/");
 
-            // Split the string to isolate the date part.  Split on whitespace or 'T' characters.
-            let parts: Vec<&str> = normalized_string
-                .trim()
+            // Split on whitespace or 'T' characters to isolate the date.
+            let opt_date_str = normalized_string
                 .split(|c: char| c.is_ascii_whitespace() || c == 'T')
-                .collect();
+                .next() // Take only the first part (the date)
+                .map(|s| s.trim()) // Trim whitespace
+                .filter(|s| !s.is_empty()); // Filter out empty strings
 
-            // Get the first part, which should be the date string.
-            let date_str = match parts.first() {
-                Some(dt) => dt,
+            let date_str = match opt_date_str {
+                Some(s) => s,
                 None => {
                     return Err(Error::custom(
                         "Invalid Date: Empty date string after processing",
@@ -254,14 +255,12 @@ where
             // Iterate through the defined date formats and attempt to parse the date string.
             for format in [FORMAT_1, FORMAT_2] {
                 // Attempt to parse the date string using the current format.
-                let parse_result = NaiveDate::parse_from_str(date_str, format);
-
-                match parse_result {
+                match NaiveDate::parse_from_str(date_str, format) {
                     Ok(date) => return Ok(Some(date)), // Return Some(NaiveDate) on successful parse.
                     Err(parse_error) => {
                         // Store the error message for later reporting if all formats fail.
                         let error_msg = format!(
-                            "string_as_date: Failed to parse date '{string:?}' with format '{format}': {parse_error}"
+                            "Failed to parse date '{string:?}' with format '{format}': {parse_error}"
                         );
                         error_msgs.push(error_msg);
                     }
@@ -270,7 +269,7 @@ where
 
             // If all parsing attempts failed, return a combined error message.
             Err(Error::custom(format!(
-                "Failed to parse date: \n{}",
+                "Failed to parse date:\n{}",
                 error_msgs.join("\n")
             )))
         }
