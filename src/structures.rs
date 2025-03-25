@@ -211,55 +211,66 @@ const FORMAT_2: &str = "%Y/%-m/%-d"; // 2023-04-20
 
 /// Deserializes an `Option<NaiveDate>` from a string.
 ///
-/// It attempts to parse the string according to `FORMAT`.  It handles variations in input
-/// by replacing hyphens with slashes and splitting on whitespace or 'T' to isolate the date part.
+/// This function attempts to parse a string into a `NaiveDate`.  It handles different
+/// date separators (hyphens and slashes) and attempts to extract the date part if the string
+/// also contains time information (separated by whitespace or 'T').
 ///
-/// Returns `Some(NaiveDate)` if parsing is successful, `None` otherwise.
+/// Returns `Some(NaiveDate)` if parsing is successful, `None` if the input string is `None`
+/// or if parsing fails for all tried formats.  Returns a `serde::de::Error` on parse failure,
+/// providing detailed error messages.
 pub fn string_as_date<'de, D>(deserializer: D) -> Result<Option<NaiveDate>, D::Error>
 where
     D: Deserializer<'de>,
 {
-    // Deserialize the input into an Option<String>.
-    // This handles the case where the input is null/None.
+    // Deserialize the input into an Option<String>. This handles cases where the input is null/None.
     let optional_string: Option<String> = Option::deserialize(deserializer)?;
 
     match optional_string {
         Some(string) => {
-            // Preprocess the string to handle different separators.
-            // string: "17-2-2014 16:32:52.34" or "17/02/2014T16:32:52.34" or "17/02/2014"
+            // Preprocess the string to handle different separators.  Replace hyphens with slashes
+            // for consistent parsing.  This handles cases like "17-2-2014 16:32:52.34" and "17/02/2014T16:32:52.34".
             let normalized_string = string.replace('-', "/");
 
-            // Split the string to isolate the date part.
+            // Split the string to isolate the date part.  Split on whitespace or 'T' characters.
             let parts: Vec<&str> = normalized_string
                 .trim()
                 .split(|c: char| c.is_ascii_whitespace() || c == 'T')
                 .collect();
 
-            // Get the first part, which should be the date.
+            // Get the first part, which should be the date string.
             let date_str = match parts.first() {
                 Some(dt) => dt,
-                None => return Err(Error::custom("Invalid Date")),
+                None => {
+                    return Err(Error::custom(
+                        "Invalid Date: Empty date string after processing",
+                    ))
+                }
             };
 
             let mut error_msgs: Vec<String> = Vec::new();
 
+            // Iterate through the defined date formats and attempt to parse the date string.
             for format in [FORMAT_1, FORMAT_2] {
-                // Convert the successful parse to Some(NaiveDate)
-                let opt_date = NaiveDate::parse_from_str(date_str, format);
+                // Attempt to parse the date string using the current format.
+                let parse_result = NaiveDate::parse_from_str(date_str, format);
 
-                match opt_date {
-                    Ok(date) => return Ok(Some(date)),
+                match parse_result {
+                    Ok(date) => return Ok(Some(date)), // Return Some(NaiveDate) on successful parse.
                     Err(parse_error) => {
-                        // Include the original error message
+                        // Store the error message for later reporting if all formats fail.
                         let error_msg = format!(
-                            "\nfn string_as_date\ndate: {string:?}\nFailed to parse date: {parse_error}\n"
+                            "string_as_date: Failed to parse date '{string:?}' with format '{format}': {parse_error}"
                         );
                         error_msgs.push(error_msg);
                     }
                 }
             }
 
-            Err(Error::custom(error_msgs.join("\n")))
+            // If all parsing attempts failed, return a combined error message.
+            Err(Error::custom(format!(
+                "Failed to parse date: \n{}",
+                error_msgs.join("\n")
+            )))
         }
         None => Ok(None), // If the input was None, return None.
     }
@@ -332,8 +343,19 @@ mod string_as_date_tests {
     }
 
     #[test]
-    fn test_deserialize_some_date() {
+    fn test_deserialize_some_date_fmt1() {
         let json = r#"{"date":"20/01/2024"}"#;
+        let expected_date = NaiveDate::from_ymd_opt(2024, 1, 20).unwrap();
+        let expected_struct = TestStruct {
+            date: Some(expected_date),
+        };
+        let actual_struct: TestStruct = serde_json::from_str(json).unwrap();
+        assert_eq!(actual_struct, expected_struct);
+    }
+
+    #[test]
+    fn test_deserialize_some_date_fmt2() {
+        let json = r#"{"date":"2024-1-20"}"#;
         let expected_date = NaiveDate::from_ymd_opt(2024, 1, 20).unwrap();
         let expected_struct = TestStruct {
             date: Some(expected_date),
