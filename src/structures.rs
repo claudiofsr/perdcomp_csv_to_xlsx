@@ -228,8 +228,8 @@ where
 
     match optional_string {
         Some(string) => {
-            // Preprocess the string to handle different separators.  
-            // Replace hyphens with slashes for consistent parsing.  
+            // Preprocess the string to handle different separators.
+            // Replace hyphens with slashes for consistent parsing.
             // This handles cases like "17-2-2014 16:32:52.34" and "17/02/2014T16:32:52.34".
             let normalized_string = string.replace('-', "/");
 
