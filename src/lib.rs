@@ -443,7 +443,10 @@ PER/DCOMP,foo,Período Apuração Crédito,"Tipo Crédito",Valor Total Crédito
 
         dbg!(&perdcomps);
 
-        assert_eq!(perdcomps.get(1).and_then(|p| p.per_dcomp.clone()), Some("321".to_string()));
+        assert_eq!(
+            perdcomps.get(1).and_then(|p| p.per_dcomp.clone()),
+            Some("321".to_string())
+        );
         assert_eq!(perdcomps.get(2).and_then(|p| p.ano), Some(2020));
         Ok(())
     }
