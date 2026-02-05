@@ -1,0 +1,74 @@
+[package]
+name = "perdcomp_csv_to_xlsx"
+description = "parse perdcomp csv to xlsx file"
+license = "BSD-3-Clause"
+version = "0.1.0"
+edition = "2024"
+categories = ["command-line-utilities"]
+keywords = [
+    "parse",
+    "perdcom",
+    "csv",
+    "xlsx"
+]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anstyle = "1.0" # used by clap color
+claudiofsr_lib = "0.19"
+csv = "1.4"
+encoding_rs = "0.8"
+encoding_rs_io = "0.1.7"
+execution-time = "0.3"
+regex = { version = "1.12", features = ["unicode"] }
+rayon = "1.11"
+serde_json = { version = "1.0", features = ["preserve_order"] }
+tempfile = "3.24"
+
+[dependencies.clap]
+version = "4.5"
+features = [
+    "color",
+    "derive",
+    "env",
+]
+
+[dependencies.chrono]
+version = "0.4"
+features = [
+    "serde",
+]
+
+[dependencies.rust_xlsxwriter]
+# git = "https://github.com/jmcnamara/rust_xlsxwriter.git"
+version = "0.93"
+features = [
+    "chrono",
+    "serde",
+    "zlib",
+    # "polars",
+]
+
+[dependencies.serde]
+version = "1.0"
+features = [
+    "derive",
+]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[profile.release]
+# https://doc.rust-lang.org/cargo/reference/profiles.html
+debug = false           # No debug info at all.
+strip = "symbols"       # Strip symbols from a binary.
+opt-level = 3           # All optimizations.
+overflow-checks = true  # Panic will occur on overflow.
+lto = true              # Enable link time optimization.
+codegen-units = 1       # Use a single codegen for size optimization.
+panic = "abort"         # Remove traceback information.
+incremental = true      # Save information to disk, improving re-compile times.
+
+[profile.dev]
+opt-level = 1           # Use slightly better optimizations.
