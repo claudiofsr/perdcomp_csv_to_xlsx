@@ -33,6 +33,12 @@ where
     // Create a new Excel file object.
     let mut workbook = Workbook::new();
 
+    let fmt_header: Format = Format::new()
+        .set_align(FormatAlign::Center) // horizontally
+        .set_align(FormatAlign::VerticalCenter)
+        .set_text_wrap()
+        .set_font_size(FONT_SIZE);
+
     // Split a vector into smaller vectors of size N
     for (index, data) in lines.chunks(MAX_NUMBER_OF_ROWS).enumerate() {
         let mut new_name = sheet_name.to_string();
@@ -42,7 +48,7 @@ where
         }
 
         // Get worksheet with sheet name.
-        let mut worksheet: Worksheet = get_worksheet(data, &new_name)?;
+        let mut worksheet: Worksheet = get_worksheet(data, &new_name, &fmt_header)?;
 
         // Oculta colunas vazias APENAS se a lista não for vazia
         for &col_idx in hide_cols {
@@ -68,22 +74,16 @@ where
 /// <https://github.com/jmcnamara/rust_xlsxwriter/blob/main/examples/app_serialize.rs>
 ///
 /// <https://github.com/jmcnamara/rust_xlsxwriter/blob/main/tests/integration/serde06.rs>
-fn get_worksheet<'de, T>(lines: &[T], sheet_name: &str) -> MyResult<Worksheet>
+fn get_worksheet<'de, T>(lines: &[T], sheet_name: &str, fmt_header: &Format) -> MyResult<Worksheet>
 where
     T: Serialize + Deserialize<'de> + XlsxSerialize, // + Sync + Send
 {
-    let fmt_header: Format = Format::new()
-        .set_align(FormatAlign::Center) // horizontally
-        .set_align(FormatAlign::VerticalCenter)
-        .set_text_wrap()
-        .set_font_size(FONT_SIZE);
-
     let mut worksheet = Worksheet::new();
 
     worksheet
         .set_name(sheet_name)?
         .set_row_height(0, 64)?
-        .set_row_format(0, &fmt_header)?
+        .set_row_format(0, fmt_header)?
         .set_freeze_panes(1, 0)?;
 
     // Set the serialization location and headers.
