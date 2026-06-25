@@ -45,6 +45,7 @@ version = "0.95"
 features = [
     "chrono",
     "serde",
+    "zmij",
     "zlib",
     # "polars",
 ]

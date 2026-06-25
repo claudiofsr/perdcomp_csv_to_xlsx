@@ -688,6 +688,7 @@ dependencies = [
  "rust_xlsxwriter_derive",
  "serde",
  "zip",
+ "zmij",
 ]
 
 [[package]]
