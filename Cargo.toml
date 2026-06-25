@@ -15,16 +15,15 @@ keywords = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-anstyle = "1.0" # used by clap color
 claudiofsr_lib = "0.19"
 csv = "1.4"
 encoding_rs = "0.8"
 encoding_rs_io = "0.1.7"
 execution-time = "0.3"
 regex = { version = "1.12", features = ["unicode"] }
-rayon = "1.11"
+rayon = "1.12"
 serde_json = { version = "1.0", features = ["preserve_order"] }
-tempfile = "3.24"
+tempfile = "3.27"
 
 [dependencies.clap]
 version = "4.5"
@@ -42,7 +41,7 @@ features = [
 
 [dependencies.rust_xlsxwriter]
 # git = "https://github.com/jmcnamara/rust_xlsxwriter.git"
-version = "0.93"
+version = "0.95"
 features = [
     "chrono",
     "serde",
